@@ -8,7 +8,8 @@ from gi.repository import GLib
 mainloop = None
 
 BUF_SIZE = 1024
-HS_AG_SERVICE_CLASS_UUID = '00001112-0000-1000-8000-00805f9b34fb'
+HSP_AG_UUID = '00001112-0000-1000-8000-00805f9b34fb'
+HFP_AG_UUID = '0000111f-0000-1000-8000-00805f9b34fb'
 
 HF_NREC			= 0x0001
 HF_3WAY			= 0x0002
@@ -19,7 +20,11 @@ HF_ENHANCED_STATUS	= 0x0020
 HF_ENHANCED_CONTROL	= 0x0040
 HF_CODEC_NEGOTIATION	= 0x0080
 
+#HF_FEATURES = (HF_3WAY | HF_CLI | HF_VOICE_RECOGNITION |
+				#HF_REMOTE_VOL | HF_ENHANCED_STATUS |
+				#HF_ENHANCED_CONTROL | HF_CODEC_NEGOTIATION)
 HF_FEATURES = (HF_CLI | HF_REMOTE_VOL)
+
 
 class HfpConnection:
 	fd = None
@@ -44,8 +49,6 @@ class HfpConnection:
 		if (buf == "OK" or buf == "ERROR"):
 			return True
 
-		self.send_cmd(b"OK")
-
 		if b"IPHONEACCEV" in buf:
 			parts = buf[buf.index(b',') + 1: -1].split(b',')
 			if len(parts) < 1 or (len(parts) % 2) != 0:
@@ -59,6 +62,15 @@ class HfpConnection:
 					logging.info("Battery level is %s%%", blevel)
 					return False
 				i += 2
+		elif b'BRSF' in buf:
+			self.send_cmd(b'AT+BRSF=%u' % (HF_FEATURES))
+		elif b'CIND=' in buf:
+			self.send_cmd(b'AT+CIND: ("battchg",(0-5))')
+		elif b'CIND?' in buf:
+			self.send_cmd(b'AT+CIND: 5')
+
+
+		self.send_cmd(b"OK")
 
 		return True
 
@@ -124,7 +136,7 @@ if __name__ == '__main__':
 	option_list = [
 			make_option("-p", "--path", action="store",
 					type="string", dest="path",
-					default="/bluez/hfp/battery"),
+					default="/bluez/headset/battery"),
 			make_option("-n", "--name", action="store",
 					type="string", dest="name",
 					default=None),
@@ -133,6 +145,8 @@ if __name__ == '__main__':
 					default=None),
 			make_option("-d", "--debug", action="store_true", dest="debug",
 					default=False),
+			make_option("-P", "--protocol", action="store", dest="protocol",
+					default="hsp", help="hsp|hfp"),
 			]
 
 	parser = OptionParser(option_list=option_list)
@@ -147,6 +161,8 @@ if __name__ == '__main__':
 
 	opts = {
 			"AutoConnect" : True,
+			#"Version" : dbus.UInt16(0x0102),
+			#"Features" : dbus.UInt16(HF_FEATURES),
 		}
 
 	if (options.name):
@@ -156,7 +172,8 @@ if __name__ == '__main__':
 		opts["Channel"] = dbus.UInt16(options.channel)
 
 	profile = HfpProfile(bus, options.path)
-	manager.RegisterProfile(options.path, HS_AG_SERVICE_CLASS_UUID, opts)
+	uuid = HFP_AG_UUID if options.protocol == "hfp" else HSP_AG_UUID
+	manager.RegisterProfile(options.path, uuid, opts)
 
 	logging.debug("Profile registered - waiting for connections")
 	mainloop.run()
