@@ -16,3 +16,7 @@ however, I have no such device at my desposal.
 * Another way to report battery status of headset is through AVRCP protocol, which is used in A2DP. 
 The handling must be added to BlueZ, search for `avrcp_handle_ct_battery_status()`.
 * Many devices support the GATT protocol. This should be supported by BlueZ as well as Upower.
+
+## Sources
+* The BlueZ example in `test/test-hfp` makes the skeleton of this code.
+* I've used parsing of the `IPHONEACCEV` value from: https://github.com/TheWeirdDev/Bluetooth_Headset_Battery_Level/
